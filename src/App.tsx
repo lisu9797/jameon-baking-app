@@ -18,6 +18,8 @@ import { IngredientDBView } from './components/IngredientDBView';
 import { PanDBView } from './components/PanDBView';
 import { RecipeModal } from './components/RecipeModal';
 import { QuickImportModal } from './components/QuickImportModal';
+import { ToastContainer, ToastMessage } from './components/Toast';
+import { exportAllDataToExcel } from './utils/excelExporter';
 import { ChefHat, Database, Box, ArrowLeft } from 'lucide-react';
 
 export function App() {
@@ -27,6 +29,18 @@ export function App() {
   const [recipes, setRecipes] = useState<Recipe[]>(initialData.recipes);
   const [ingredientsDB, setIngredientsDB] = useState<IngredientDBItem[]>(initialData.ingredients);
   const [pansDB, setPansDB] = useState<PanDBItem[]>(initialData.pans);
+
+  // Toast notification state
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = (text: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 6);
+    setToasts((prev) => [...prev, { id, type, text }]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Sync state
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -56,7 +70,7 @@ export function App() {
   const [isQuickImportOpen, setIsQuickImportOpen] = useState<boolean>(false);
 
   // Synchronize with Google Sheets
-  const handleSyncWithGAS = async () => {
+  const handleSyncWithGAS = async (manual = false) => {
     try {
       setSyncStatus('syncing');
       const gasData = await fetchAllFromGAS();
@@ -75,11 +89,27 @@ export function App() {
       const now = new Date().toISOString();
       setLastSyncTime(now);
       setSyncStatus('synced');
+      if (manual) {
+        showToast('구글 시트의 최신 데이터로 동기화되었습니다.', 'success');
+      }
     } catch (err) {
       console.error('GAS synchronization error:', err);
       setSyncStatus('error');
+      if (manual) {
+        showToast('구글 시트 동기화에 실패했습니다. 네트워크 상태를 확인해주세요.', 'error');
+      }
     }
   };
+
+  const handleExportExcel = () => {
+    try {
+      exportAllDataToExcel(recipes, ingredientsDB, pansDB);
+      showToast('전체 레시피 및 재료/구움틀 DB 엑셀 파일이 백업되었습니다.', 'success');
+    } catch (err: any) {
+      showToast('엑셀 백업 중 오류: ' + (err.message || ''), 'error');
+    }
+  };
+
 
   // Initial load: render cache first, then fetch live GAS in background
   useEffect(() => {
@@ -109,9 +139,11 @@ export function App() {
       setSyncStatus('syncing');
       await saveRecipeToGAS(savedRecipe);
       setSyncStatus('synced');
+      showToast(`'${savedRecipe.name}' 레시피가 저장되었습니다.`);
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
+      showToast('구글 시트 저장 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -128,9 +160,11 @@ export function App() {
       setSyncStatus('syncing');
       await deleteRecipeFromGAS(name);
       setSyncStatus('synced');
+      showToast(`'${name}' 레시피가 삭제되었습니다.`, 'info');
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
+      showToast('구글 시트 삭제 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -140,6 +174,7 @@ export function App() {
     setSelectedRecipeName(newRecipe.name);
     cacheData(updated, ingredientsDB, pansDB);
     saveRecipeToGAS(newRecipe).catch(console.error);
+    showToast(`'${newRecipe.name}'(으)로 복제 저장되었습니다.`);
   };
 
   const handleImportMultiple = (importedRecipes: Recipe[]) => {
@@ -152,6 +187,7 @@ export function App() {
 
     // Sync all to GAS in background
     importedRecipes.forEach((r) => saveRecipeToGAS(r).catch(console.error));
+    showToast(`${importedRecipes.length}개의 레시피가 일괄 등록되었습니다.`);
   };
 
   // Ingredient CRUD
@@ -172,9 +208,11 @@ export function App() {
       setSyncStatus('syncing');
       await saveIngredientToGAS(item);
       setSyncStatus('synced');
+      showToast(`'${item.name}' 재료가 저장되었습니다.`);
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
+      showToast('재료 저장 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -187,9 +225,11 @@ export function App() {
       setSyncStatus('syncing');
       await deleteIngredientFromGAS(name);
       setSyncStatus('synced');
+      showToast(`'${name}' 재료가 삭제되었습니다.`, 'info');
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
+      showToast('재료 삭제 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -211,9 +251,11 @@ export function App() {
       setSyncStatus('syncing');
       await savePanToGAS(pan);
       setSyncStatus('synced');
+      showToast(`'${pan.name}' 구움틀이 저장되었습니다.`);
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
+      showToast('구움틀 저장 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -226,9 +268,11 @@ export function App() {
       setSyncStatus('syncing');
       await deletePanFromGAS(name);
       setSyncStatus('synced');
+      showToast(`'${name}' 구움틀이 삭제되었습니다.`, 'info');
     } catch (err) {
       console.error(err);
       setSyncStatus('error');
+      showToast('구움틀 삭제 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -243,7 +287,8 @@ export function App() {
         panCount={pansDB.length}
         syncStatus={syncStatus}
         lastSyncTime={lastSyncTime}
-        onSync={handleSyncWithGAS}
+        onSync={() => handleSyncWithGAS(true)}
+        onExportExcel={handleExportExcel}
         onOpenNewRecipe={() => {
           setEditingRecipe(null);
           setIsRecipeModalOpen(true);
@@ -384,6 +429,9 @@ export function App() {
         }}
         onImportMultipleRecipes={handleImportMultiple}
       />
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
     </div>
   );
 }

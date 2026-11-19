@@ -210,6 +210,25 @@ export const IngredientDBView: React.FC<IngredientDBViewProps> = ({
         </div>
       </div>
 
+      {/* Quick Category Chips */}
+      {categories.length > 2 && (
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, whiteSpace: 'nowrap' }}>
+          {categories.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`chip ${selectedCategory === c ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(c)}
+            >
+              <span>{c}</span>
+              <span className="num-tabular" style={{ fontSize: 11, opacity: 0.8 }}>
+                ({c === '전체' ? ingredients.length : ingredients.filter((i) => (i.category || '기타') === c).length})
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Card View */}
       {viewMode === 'card' ? (
         <div className="recipe-cards-grid">

@@ -1,6 +1,6 @@
 import React from 'react';
 import { TabType } from '../types/erp';
-import { ChefHat, Database, Box, RefreshCw, Plus, FileText, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { ChefHat, Database, Box, RefreshCw, Plus, FileText, CheckCircle2, AlertCircle, Loader2, Download } from 'lucide-react';
 
 interface HeaderProps {
   currentTab: TabType;
@@ -13,6 +13,7 @@ interface HeaderProps {
   onSync: () => void;
   onOpenNewRecipe: () => void;
   onOpenQuickImport: () => void;
+  onExportExcel?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSync,
   onOpenNewRecipe,
   onOpenQuickImport,
+  onExportExcel,
 }) => {
   return (
     <header className="top-header">
@@ -64,6 +66,13 @@ export const Header: React.FC<HeaderProps> = ({
           <RefreshCw size={14} className={syncStatus === 'syncing' ? 'spin-icon' : ''} />
           <span>시트 동기화</span>
         </button>
+
+        {onExportExcel && (
+          <button className="btn btn-soft btn-sm" onClick={onExportExcel} title="전체 레시피 및 재료/구움틀 DB 엑셀(.xlsx) 파일로 백업">
+            <Download size={14} />
+            <span>엑셀 백업</span>
+          </button>
+        )}
 
         <button className="btn btn-soft btn-sm" onClick={onOpenQuickImport} title="텍스트, 손글씨 사진 OCR, 엑셀 파일 간편 등록">
           <FileText size={14} />

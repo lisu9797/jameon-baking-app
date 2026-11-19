@@ -524,6 +524,11 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                                     handleNameInputChange(idx, ing.name);
                                   }
                                 }}
+                                onBlur={() => {
+                                  setTimeout(() => {
+                                    setActiveIngIndex(null);
+                                  }, 200);
+                                }}
                               />
 
                               {/* Autocomplete Dropdown */}

@@ -202,6 +202,14 @@ export async function exportWorkOrderToPNG(
   document.body.appendChild(container);
 
   try {
+    if (document.fonts?.ready) {
+      try {
+        await document.fonts.ready;
+      } catch {
+        // continue
+      }
+    }
+
     const canvas = await window.html2canvas(container, {
       scale: 2, // 2x high resolution
       backgroundColor: '#FFFFFF',
