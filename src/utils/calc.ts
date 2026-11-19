@@ -170,3 +170,46 @@ export const SPECIFIC_GRAVITY_PRESETS = [
   { label: '휘낭시에', value: 0.90, desc: '밀도 있는 구움과자' },
   { label: '치즈/무스', value: 1.00, desc: '무스, 바스크치즈케이크' },
 ];
+
+/**
+ * Synchronize all ingredients in a recipe with the latest prices from Ingredient DB
+ * and stamp updatedAt with today's date (YYYY.MM.DD)
+ */
+export function syncRecipeWithLatestIngredientPrices(
+  recipe: Recipe,
+  ingredientDB: import('../types/erp').IngredientDBItem[]
+): { updatedRecipe: Recipe; changedCount: number } {
+  let changedCount = 0;
+  const newIngredients = recipe.ingredients.map((ing) => {
+    if (isSubheading(ing)) return { ...ing };
+    const cleanName = ing.name.trim().toLowerCase();
+    
+    // Exact or substring match from DB
+    const match =
+      ingredientDB.find((item) => item.name.trim().toLowerCase() === cleanName) ||
+      ingredientDB.find((item) => {
+        const dbName = item.name.trim().toLowerCase();
+        return dbName.includes(cleanName) || cleanName.includes(dbName);
+      });
+
+    if (match && match.price > 0 && match.weight > 0) {
+      if (ing.packagePrice !== match.price || ing.packageWeight !== match.weight) {
+        changedCount++;
+        return {
+          ...ing,
+          packagePrice: match.price,
+          packageWeight: match.weight,
+        };
+      }
+    }
+    return { ...ing };
+  });
+
+  const updatedRecipe: Recipe = {
+    ...recipe,
+    ingredients: newIngredients,
+    updatedAt: getFormattedToday(),
+  };
+
+  return { updatedRecipe, changedCount };
+}

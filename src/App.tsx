@@ -367,6 +367,8 @@ export function App() {
                       key={activeRecipe.name}
                       recipe={activeRecipe}
                       pansDB={pansDB}
+                      ingredientDB={ingredientsDB}
+                      onUpdateRecipe={handleSaveRecipe}
                       onEdit={(r) => {
                         setEditingRecipe(r);
                         setIsRecipeModalOpen(true);

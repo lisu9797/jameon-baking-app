@@ -1,14 +1,21 @@
 import { Recipe, RecipeMetrics } from '../types/erp';
 import { formatCurrency, formatNumber, formatSubheading, getFormattedToday } from './calc';
 
+export interface WorkOrderExportOptions {
+  includeCost?: boolean; // True to include buying prices, ingredient cost, margin rate; false for kitchen work order
+}
+
 export async function exportWorkOrderToPNG(
   recipe: Recipe,
   metrics: RecipeMetrics,
-  currentYield: number
+  currentYield: number,
+  options: WorkOrderExportOptions = { includeCost: false }
 ): Promise<void> {
   if (!window.html2canvas) {
     throw new Error('html2canvas 라이브러리를 불러올 수 없습니다.');
   }
+
+  const includeCost = Boolean(options.includeCost);
 
   // Create an off-screen container with fixed 800px width and explicit inline styling
   const container = document.createElement('div');
@@ -24,7 +31,6 @@ export async function exportWorkOrderToPNG(
   container.style.boxSizing = 'border-box';
   container.style.zIndex = '-999';
 
-  // Construct printable HTML
   const dateStr = getFormattedToday();
 
   // Ingredients rows HTML
@@ -33,7 +39,7 @@ export async function exportWorkOrderToPNG(
       if (ing.isSubheading) {
         return `
         <tr style="background-color: #F1ECE4; border-top: 1.5px solid #CEC7BD; border-bottom: 1.5px solid #CEC7BD;">
-          <td colspan="5" style="padding: 8px 12px; font-weight: 800; font-size: 13px; color: #1C1B18;">
+          <td colspan="${includeCost ? 5 : 3}" style="padding: 8px 12px; font-weight: 800; font-size: 13px; color: #1C1B18;">
             ▶ ${formatSubheading(ing.name)}
           </td>
         </tr>
@@ -56,12 +62,18 @@ export async function exportWorkOrderToPNG(
         <td style="padding: 9px 12px; font-size: 13px; text-align: right; color: #5C5852; font-variant-numeric: tabular-nums;">
           ${ing.bakersPct > 0 ? ing.bakersPct.toFixed(1) + '%' : '-'}
         </td>
+        ${
+          includeCost
+            ? `
         <td style="padding: 9px 12px; font-size: 12px; text-align: right; color: #5C5852; font-variant-numeric: tabular-nums;">
           ${ing.packagePrice > 0 ? `${formatNumber(ing.packagePrice)}원 / ${formatNumber(ing.packageWeight)}g` : '-'}
         </td>
         <td style="padding: 9px 12px; font-size: 13px; text-align: right; font-weight: 700; color: #1C1B18; font-variant-numeric: tabular-nums;">
           ${ing.cost > 0 ? formatCurrency(ing.cost) : '-'}
         </td>
+        `
+            : ''
+        }
       </tr>
     `;
     })
@@ -116,31 +128,18 @@ export async function exportWorkOrderToPNG(
     `
       : '';
 
-  container.innerHTML = `
-    <div style="border-bottom: 2.5px solid #174328; padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
-      <div>
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-          <span style="background: #174328; color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 2px; letter-spacing: 0.5px;">JAMEON ERP</span>
-          <span style="background: #FAF0EC; color: #A85232; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 2px;">${recipe.category || '베이커리'}</span>
-        </div>
-        <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #1C1B18; letter-spacing: -0.5px;">
-          ${recipe.name}
-        </h1>
-        <div style="margin-top: 6px; font-size: 13px; color: #5C5852;">
-          ${recipe.panName ? `기준 틀: <strong>${recipe.panName}</strong>` : ''}
-          ${recipe.fillRatio ? ` (충전율 ${recipe.fillRatio}%)` : ''}
-          ${recipe.specificGravity ? ` (반죽비중 ${recipe.specificGravity} g/ml)` : ''}
-        </div>
+  // Product photo thumbnail if exists
+  const photoHtml = recipe.image
+    ? `
+      <div style="margin-right: 16px; flex-shrink: 0;">
+        <img src="${recipe.image}" alt="${recipe.name}" style="width: 72px; height: 72px; object-fit: cover; border-radius: 6px; border: 1px solid #CEC7BD;" />
       </div>
+    `
+    : '';
 
-      <div style="text-align: right;">
-        <div style="font-size: 14px; font-weight: 800; color: #174328; margin-bottom: 4px;">작업 지시서 (배합표)</div>
-        <div style="font-size: 12px; color: #5C5852;">발행일자: ${dateStr}</div>
-        <div style="font-size: 13px; font-weight: 700; color: #1C1B18; margin-top: 4px;">생산 지시 수량: ${currentYield}개</div>
-      </div>
-    </div>
-
-    <!-- Summary Metrics Grid -->
+  // Summary Grid HTML (conditional on includeCost)
+  const summaryGridHtml = includeCost
+    ? `
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; background: #EDF2EE; border: 1px solid #C3D9C8; border-radius: 4px; padding: 12px 16px; margin-bottom: 16px;">
       <div>
         <div style="font-size: 11px; color: #174328; font-weight: 700;">총 배합 중량</div>
@@ -159,35 +158,115 @@ export async function exportWorkOrderToPNG(
         <div style="font-size: 17px; font-weight: 800; color: #174328; font-variant-numeric: tabular-nums;">${formatCurrency(metrics.sellingPrice)} (${metrics.marginRate}%)</div>
       </div>
     </div>
+  `
+    : `
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; background: #EDF2EE; border: 1px solid #C3D9C8; border-radius: 4px; padding: 12px 16px; margin-bottom: 16px;">
+      <div>
+        <div style="font-size: 11px; color: #174328; font-weight: 700;">총 배합 중량</div>
+        <div style="font-size: 18px; font-weight: 800; color: #174328; font-variant-numeric: tabular-nums;">${formatNumber(metrics.totalWeight, 1)} g</div>
+      </div>
+      <div>
+        <div style="font-size: 11px; color: #174328; font-weight: 700;">총 가루류 중량</div>
+        <div style="font-size: 18px; font-weight: 800; color: #174328; font-variant-numeric: tabular-nums;">${formatNumber(metrics.totalFlourWeight, 1)} g</div>
+      </div>
+      <div>
+        <div style="font-size: 11px; color: #174328; font-weight: 700;">생산 지시 수량</div>
+        <div style="font-size: 18px; font-weight: 800; color: #174328; font-variant-numeric: tabular-nums;">${currentYield} 개 분량</div>
+      </div>
+    </div>
+  `;
+
+  // Table Headers (conditional on includeCost)
+  const tableHeaderHtml = includeCost
+    ? `
+      <tr style="background: #FAF8F5; border-bottom: 1.5px solid #CEC7BD;">
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: left; width: 35%;">재료명</th>
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 18%;">배합량 (g)</th>
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 15%;">베이커스 (%)</th>
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 18%;">구매단가 / 규격</th>
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 14%;">재료 원가</th>
+      </tr>
+  `
+    : `
+      <tr style="background: #FAF8F5; border-bottom: 1.5px solid #CEC7BD;">
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: left; width: 50%;">재료명</th>
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 25%;">배합량 (g)</th>
+        <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 25%;">베이커스 (%)</th>
+      </tr>
+  `;
+
+  // Total Row HTML
+  const totalRowHtml = includeCost
+    ? `
+      <tr style="background: #FAF8F5; border-top: 2px solid #1C1B18; font-weight: 900;">
+        <td style="padding: 11px 12px; font-size: 13px; color: #1C1B18;">합계 (총 반죽 중량)</td>
+        <td style="padding: 11px 12px; font-size: 14px; text-align: right; color: #174328; font-variant-numeric: tabular-nums;">
+          ${formatNumber(metrics.totalWeight, 1)} g
+        </td>
+        <td style="padding: 11px 12px; font-size: 13px; text-align: right; color: #1C1B18; font-variant-numeric: tabular-nums;">
+          ${metrics.totalFlourWeight > 0 ? ((metrics.totalWeight / metrics.totalFlourWeight) * 100).toFixed(1) + '%' : '100%'}
+        </td>
+        <td style="padding: 11px 12px; font-size: 12px; text-align: right; color: #5C5852;">재료비 합계</td>
+        <td style="padding: 11px 12px; font-size: 14px; text-align: right; color: #174328; font-variant-numeric: tabular-nums;">
+          ${formatCurrency(metrics.totalMaterialCost)}
+        </td>
+      </tr>
+  `
+    : `
+      <tr style="background: #FAF8F5; border-top: 2px solid #1C1B18; font-weight: 900;">
+        <td style="padding: 11px 12px; font-size: 13px; color: #1C1B18;">합계 (총 반죽 중량)</td>
+        <td style="padding: 11px 12px; font-size: 15px; text-align: right; color: #174328; font-variant-numeric: tabular-nums;">
+          ${formatNumber(metrics.totalWeight, 1)} g
+        </td>
+        <td style="padding: 11px 12px; font-size: 13px; text-align: right; color: #1C1B18; font-variant-numeric: tabular-nums;">
+          ${metrics.totalFlourWeight > 0 ? ((metrics.totalWeight / metrics.totalFlourWeight) * 100).toFixed(1) + '%' : '100%'}
+        </td>
+      </tr>
+  `;
+
+  container.innerHTML = `
+    <div style="border-bottom: 2.5px solid #174328; padding-bottom: 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: flex-end;">
+      <div style="display: flex; align-items: center;">
+        ${photoHtml}
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+            <span style="background: #174328; color: #FFFFFF; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 2px; letter-spacing: 0.5px;">JAMEON ERP</span>
+            <span style="background: #FAF0EC; color: #A85232; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 2px;">${recipe.category || '베이커리'}</span>
+            <span style="background: ${includeCost ? '#EDF2EE' : '#F1ECE4'}; color: ${includeCost ? '#174328' : '#5C5852'}; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 2px;">
+              ${includeCost ? '원가 포함본' : '주방 실무용'}
+            </span>
+          </div>
+          <h1 style="margin: 0; font-size: 26px; font-weight: 900; color: #1C1B18; letter-spacing: -0.5px;">
+            ${recipe.name}
+          </h1>
+          <div style="margin-top: 6px; font-size: 13px; color: #5C5852;">
+            ${recipe.panName ? `기준 틀: <strong>${recipe.panName}</strong>` : ''}
+            ${recipe.fillRatio ? ` (충전율 ${recipe.fillRatio}%)` : ''}
+            ${recipe.specificGravity ? ` (반죽비중 ${recipe.specificGravity} g/ml)` : ''}
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align: right;">
+        <div style="font-size: 14px; font-weight: 800; color: #174328; margin-bottom: 4px;">작업 지시서 (배합표)</div>
+        <div style="font-size: 12px; color: #5C5852;">발행일자: ${dateStr}</div>
+        <div style="font-size: 13px; font-weight: 700; color: #1C1B18; margin-top: 4px;">생산 지시 수량: ${currentYield}개</div>
+      </div>
+    </div>
+
+    <!-- Summary Metrics -->
+    ${summaryGridHtml}
 
     ${noticeHtml}
 
     <!-- Ingredients Table -->
     <table style="width: 100%; border-collapse: collapse; border: 1px solid #E2DDD5; border-radius: 4px; overflow: hidden;">
       <thead>
-        <tr style="background: #FAF8F5; border-bottom: 1.5px solid #CEC7BD;">
-          <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: left; width: 35%;">재료명</th>
-          <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 18%;">배합량 (g)</th>
-          <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 15%;">베이커스 (%)</th>
-          <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 18%;">구매단가 / 규격</th>
-          <th style="padding: 10px 12px; font-size: 13px; font-weight: 800; color: #5C5852; text-align: right; width: 14%;">재료 원가</th>
-        </tr>
+        ${tableHeaderHtml}
       </thead>
       <tbody>
         ${rowsHtml}
-        <tr style="background: #FAF8F5; border-top: 2px solid #1C1B18; font-weight: 900;">
-          <td style="padding: 11px 12px; font-size: 13px; color: #1C1B18;">합계 (총 반죽 중량)</td>
-          <td style="padding: 11px 12px; font-size: 14px; text-align: right; color: #174328; font-variant-numeric: tabular-nums;">
-            ${formatNumber(metrics.totalWeight, 1)} g
-          </td>
-          <td style="padding: 11px 12px; font-size: 13px; text-align: right; color: #1C1B18; font-variant-numeric: tabular-nums;">
-            ${metrics.totalFlourWeight > 0 ? ((metrics.totalWeight / metrics.totalFlourWeight) * 100).toFixed(1) + '%' : '100%'}
-          </td>
-          <td style="padding: 11px 12px; font-size: 12px; text-align: right; color: #5C5852;">재료비 합계</td>
-          <td style="padding: 11px 12px; font-size: 14px; text-align: right; color: #174328; font-variant-numeric: tabular-nums;">
-            ${formatCurrency(metrics.totalMaterialCost)}
-          </td>
-        </tr>
+        ${totalRowHtml}
       </tbody>
     </table>
 
@@ -195,7 +274,7 @@ export async function exportWorkOrderToPNG(
 
     <div style="margin-top: 24px; padding-top: 10px; border-top: 1px solid #E2DDD5; display: flex; justify-content: space-between; font-size: 11px; color: #969087;">
       <span>JAMEON BAKERY ERP — Artisan Baking Recipe & Work Order Management</span>
-      <span>${dateStr} 인쇄본</span>
+      <span>${dateStr} ${includeCost ? '[관리자 원가용]' : '[주방 실무용]'}</span>
     </div>
   `;
 
@@ -218,8 +297,9 @@ export async function exportWorkOrderToPNG(
       windowWidth: 800,
     });
 
+    const modeLabel = includeCost ? '원가포함' : '주방용';
     const link = document.createElement('a');
-    link.download = `[작업지시서]_${recipe.name}_${currentYield}개_${dateStr}.png`;
+    link.download = `[작업지시서_${modeLabel}]_${recipe.name}_${currentYield}개_${dateStr}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   } finally {

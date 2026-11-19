@@ -17,7 +17,9 @@ export interface Recipe {
   panName: string;
   specificGravity: number;
   fillRatio: number;
-  image: string;
+  image: string; // Finished product photo (제품 사진)
+  processImages?: string[]; // Process photos (공정 사진 갤러리)
+  stepImages?: { [stepIndex: number]: string }; // Step-specific process photos (단계별 공정 사진)
   notice: string;
   temperature: string;
   time: string;

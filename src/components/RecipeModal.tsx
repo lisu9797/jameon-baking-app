@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Recipe, RecipeIngredient, IngredientDBItem, PanDBItem } from '../types/erp';
 import { isLikelyFlour } from '../utils/parser';
+import { getFormattedToday } from '../utils/calc';
 import {
   X,
   Plus,
@@ -15,6 +16,8 @@ import {
   Clock,
   HelpCircle,
   FolderPlus,
+  Camera,
+  Upload,
 } from 'lucide-react';
 
 interface RecipeModalProps {
@@ -50,12 +53,47 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
   const [temperature, setTemperature] = useState('');
   const [time, setTime] = useState('');
   const [notice, setNotice] = useState('');
-  const [image, setImage] = useState('');
+  const [image, setImage] = useState(''); // 제품 사진
+  const [processImages, setProcessImages] = useState<string[]>([]); // 공정 사진 갤러리
+  const [stepImages, setStepImages] = useState<{ [stepIndex: number]: string }>({}); // 단계별 공정 사진
   const [isExtraAccordionOpen, setIsExtraAccordionOpen] = useState(false);
 
   // Ingredients and Steps
   const [ingredients, setIngredients] = useState<RecipeIngredient[]>([]);
   const [steps, setSteps] = useState<string[]>([]);
+
+  // Image compressor helper
+  const compressAndReadImage = (file: File, callback: (base64: string) => void) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const raw = e.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 800;
+        let w = img.width;
+        let h = img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, w, h);
+        callback(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.onerror = () => callback(raw);
+      img.src = raw;
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Autocomplete state for active row
   const [activeIngIndex, setActiveIngIndex] = useState<number | null>(null);
@@ -80,7 +118,17 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       setTime(initialRecipe.time || '');
       setNotice(initialRecipe.notice || '');
       setImage(initialRecipe.image || '');
-      setIsExtraAccordionOpen(Boolean(initialRecipe.temperature || initialRecipe.time || initialRecipe.notice || initialRecipe.image));
+      setProcessImages(initialRecipe.processImages ? [...initialRecipe.processImages] : []);
+      setStepImages(initialRecipe.stepImages ? { ...initialRecipe.stepImages } : {});
+      setIsExtraAccordionOpen(
+        Boolean(
+          initialRecipe.temperature ||
+          initialRecipe.time ||
+          initialRecipe.notice ||
+          initialRecipe.image ||
+          (initialRecipe.processImages && initialRecipe.processImages.length > 0)
+        )
+      );
 
       setIngredients(
         initialRecipe.ingredients && initialRecipe.ingredients.length > 0
@@ -103,6 +151,8 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       setTime('');
       setNotice('');
       setImage('');
+      setProcessImages([]);
+      setStepImages({});
       setIsExtraAccordionOpen(false);
       setIngredients([
         { name: '', amount: 100, packagePrice: 0, packageWeight: 1000, isFlour: true },
@@ -243,11 +293,14 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
       specificGravity: Number(specificGravity) || 0,
       fillRatio: Number(fillRatio) || 75,
       image,
+      processImages,
+      stepImages,
       notice: notice.trim(),
       temperature: temperature.trim(),
       time: time.trim(),
       ingredients: cleanedIngredients,
       steps: cleanedSteps,
+      updatedAt: getFormattedToday(),
     };
 
     onSave(recipeObj);
@@ -410,6 +463,101 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
 
               {isExtraAccordionOpen && (
                 <div className="accordion-content">
+                  {/* Photo Section: Product Photo & Process Photos */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14, marginBottom: 16, padding: '12px 14px', background: 'var(--paper-subtle)', borderRadius: 6, border: '1px solid var(--hairline)' }}>
+                    {/* 1. Product Photo */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="form-label" style={{ fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <Camera size={14} color="var(--forest-green)" />
+                          <span>완제품 대표 사진</span>
+                        </label>
+                        {image && (
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            style={{ color: 'var(--danger-red)', fontSize: 11, padding: '2px 6px' }}
+                            onClick={() => setImage('')}
+                          >
+                            사진 삭제
+                          </button>
+                        )}
+                      </div>
+                      
+                      {image ? (
+                        <div style={{ position: 'relative', width: '100%', height: 110, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--hairline)', background: '#fff' }}>
+                          <img src={image} alt="제품 대표 사진" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                      ) : (
+                        <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 110, border: '1px dashed var(--hairline)', borderRadius: 6, cursor: 'pointer', background: '#fff' }}>
+                          <Upload size={18} color="var(--ink-muted)" />
+                          <span style={{ fontSize: 12, color: 'var(--ink-secondary)', marginTop: 4 }}>제품 사진 업로드</span>
+                          <span style={{ fontSize: 10, color: 'var(--ink-muted)' }}>자동 압축 (최대 800px)</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) compressAndReadImage(file, (b64) => setImage(b64));
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* 2. Process Photos Gallery */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <label className="form-label" style={{ fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <ImageIcon size={14} color="var(--crust-terracotta)" />
+                          <span>공정 사진 모음 ({processImages.length}장)</span>
+                        </label>
+                        <label className="btn btn-soft btn-sm" style={{ cursor: 'pointer', fontSize: 11, padding: '3px 8px' }}>
+                          <Plus size={12} />
+                          <span>+ 사진 추가</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const files = e.target.files;
+                              if (files) {
+                                Array.from(files).forEach((file) => {
+                                  compressAndReadImage(file, (b64) => {
+                                    setProcessImages((prev) => [...prev, b64]);
+                                  });
+                                });
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      {processImages.length > 0 ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 6, maxHeight: 110, overflowY: 'auto', padding: 4, background: '#fff', borderRadius: 6, border: '1px solid var(--hairline)' }}>
+                          {processImages.map((pImg, pIdx) => (
+                            <div key={pIdx} style={{ position: 'relative', height: 60, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--hairline)' }}>
+                              <img src={pImg} alt={`공정 사진 ${pIdx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              <button
+                                type="button"
+                                style={{ position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10 }}
+                                onClick={() => setProcessImages(processImages.filter((_, i) => i !== pIdx))}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 110, border: '1px dashed var(--hairline)', borderRadius: 6, background: '#fff', color: 'var(--ink-muted)', fontSize: 12 }}>
+                          공정별 사진을 등록해 작업지시서와 함께 확인하세요
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
                     <div className="form-group">
                       <label className="form-label">오븐 온도</label>
@@ -637,25 +785,71 @@ export const RecipeModal: React.FC<RecipeModalProps> = ({
                 </button>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {steps.map((step, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, width: 24, textAlign: 'right' }}>{idx + 1}.</span>
-                    <input
-                      type="text"
-                      className="input-text input-sm"
-                      placeholder={`공정 단계 내용 (예: 버터와 설탕을 뽀얗게 크림화합니다.)`}
-                      value={step}
-                      onChange={(e) => updateStep(idx, e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ color: 'var(--danger-red)' }}
-                      onClick={() => removeStep(idx)}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                  <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', background: 'var(--paper-subtle)', borderRadius: 6, border: '1px solid var(--hairline)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, width: 22, textAlign: 'right', color: 'var(--forest-green)' }}>{idx + 1}.</span>
+                      <input
+                        type="text"
+                        className="input-text input-sm"
+                        placeholder={`공정 단계 내용 (예: 버터와 설탕을 뽀얗게 크림화합니다.)`}
+                        value={step}
+                        onChange={(e) => updateStep(idx, e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer', padding: '4px 6px' }} title="이 단계 사진 첨부">
+                        <Camera size={14} color={stepImages[idx] ? 'var(--forest-green)' : 'var(--ink-muted)'} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              compressAndReadImage(file, (b64) => {
+                                setStepImages((prev) => ({ ...prev, [idx]: b64 }));
+                              });
+                            }
+                          }}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: 'var(--danger-red)', padding: '4px 6px' }}
+                        onClick={() => {
+                          removeStep(idx);
+                          // Clean up step image index
+                          const updated = { ...stepImages };
+                          delete updated[idx];
+                          setStepImages(updated);
+                        }}
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+
+                    {/* Step Photo Preview if uploaded */}
+                    {stepImages[idx] && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 30 }}>
+                        <div style={{ position: 'relative', width: 64, height: 48, borderRadius: 4, overflow: 'hidden', border: '1px solid var(--hairline)' }}>
+                          <img src={stepImages[idx]} alt={`${idx + 1}단계 사진`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <button
+                            type="button"
+                            style={{ position: 'absolute', top: 1, right: 1, background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '50%', width: 14, height: 14, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                            onClick={() => {
+                              const updated = { ...stepImages };
+                              delete updated[idx];
+                              setStepImages(updated);
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--ink-muted)' }}>단계 사진 첨부됨</span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
