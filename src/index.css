@@ -412,18 +412,89 @@ input[type="number"],
 }
 
 .tag-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 2px 7px;
   border-radius: var(--radius-xs);
   font-size: 11px;
   font-weight: 700;
   background: var(--surface-accent);
   color: var(--ink-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.4;
 }
 
 .tag-badge.flour {
   background: var(--crust-tint);
   color: var(--crust-terracotta);
+}
+
+/* Compact Recipe List Rows (for sidebar and mobile) */
+.recipe-compact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.recipe-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--surface-paper);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  gap: 10px;
+}
+
+.recipe-list-row:hover {
+  background: var(--surface-sub);
+  border-color: var(--forest-green);
+}
+
+.recipe-list-row.selected {
+  background: var(--forest-tint);
+  border-color: var(--forest-green);
+  border-left: 3.5px solid var(--forest-green);
+}
+
+.recipe-row-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.recipe-row-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.recipe-row-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.recipe-row-price {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--forest-green);
+}
+
+.recipe-row-yield {
+  font-size: 11px;
+  color: var(--ink-muted);
 }
 
 /* Inputs & Form Controls */

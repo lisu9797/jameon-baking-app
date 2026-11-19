@@ -38,6 +38,17 @@ export function App() {
     initialData.recipes[0]?.name || null
   );
   const [mobileRecipeView, setMobileRecipeView] = useState<'list' | 'detail'>('list');
+  const [isMobile, setIsMobile] = useState<boolean>(
+    () => typeof window !== 'undefined' && window.innerWidth < 960
+  );
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 960);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Modals
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState<boolean>(false);
@@ -274,78 +285,68 @@ export function App() {
       <main>
         {currentTab === 'recipes' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div className="recipe-layout-grid">
+            <div className={isMobile ? '' : 'recipe-layout-grid'}>
               {/* Recipe List sidebar / column */}
-              <div
-                style={{
-                  display:
-                    typeof window !== 'undefined' && window.innerWidth < 960 && mobileRecipeView === 'detail'
-                      ? 'none'
-                      : 'flex',
-                  flexDirection: 'column',
-                  gap: 14,
-                }}
-              >
-                <RecipeList
-                  recipes={recipes}
-                  selectedRecipeName={selectedRecipeName}
-                  onSelectRecipe={(r) => {
-                    setSelectedRecipeName(r.name);
-                    setMobileRecipeView('detail');
-                  }}
-                  onOpenNewRecipe={() => {
-                    setEditingRecipe(null);
-                    setIsRecipeModalOpen(true);
-                  }}
-                />
-              </div>
-
-              {/* Recipe Detail view */}
-              <div
-                style={{
-                  display:
-                    typeof window !== 'undefined' && window.innerWidth < 960 && mobileRecipeView === 'list'
-                      ? 'none'
-                      : 'block',
-                }}
-              >
-                {/* Mobile back to list bar */}
-                <div className="mobile-back-bar">
-                  <button className="btn btn-soft btn-sm" onClick={() => setMobileRecipeView('list')}>
-                    <ArrowLeft size={14} />
-                    <span>◀ 레시피 목록으로 돌아가기</span>
-                  </button>
-                </div>
-
-                {activeRecipe ? (
-                  <RecipeDetail
-                    key={activeRecipe.name}
-                    recipe={activeRecipe}
-                    pansDB={pansDB}
-                    onEdit={(r) => {
-                      setEditingRecipe(r);
+              {(!isMobile || mobileRecipeView === 'list') && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <RecipeList
+                    recipes={recipes}
+                    selectedRecipeName={selectedRecipeName}
+                    onSelectRecipe={(r) => {
+                      setSelectedRecipeName(r.name);
+                      setMobileRecipeView('detail');
+                    }}
+                    onOpenNewRecipe={() => {
+                      setEditingRecipe(null);
                       setIsRecipeModalOpen(true);
                     }}
-                    onDelete={handleDeleteRecipe}
-                    onSaveToGAS={async (r) => {
-                      try {
-                        setSyncStatus('syncing');
-                        await saveRecipeToGAS(r);
-                        setSyncStatus('synced');
-                        return true;
-                      } catch {
-                        setSyncStatus('error');
-                        return false;
-                      }
-                    }}
-                    onDuplicate={handleDuplicateRecipe}
                   />
-                ) : (
-                  <div className="paper-card" style={{ padding: 40, textAlign: 'center', color: 'var(--ink-muted)' }}>
-                    선택된 레시피가 없습니다. 좌측 목록에서 레시피를 선택하거나 새로 작성해보세요.
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* Recipe Detail view */}
+              {(!isMobile || mobileRecipeView === 'detail') && (
+                <div>
+                  {/* Mobile back to list bar */}
+                  {isMobile && (
+                    <div className="mobile-back-bar">
+                      <button className="btn btn-soft btn-sm" onClick={() => setMobileRecipeView('list')}>
+                        <ArrowLeft size={14} />
+                        <span>◀ 레시피 목록으로 돌아가기</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {activeRecipe ? (
+                    <RecipeDetail
+                      key={activeRecipe.name}
+                      recipe={activeRecipe}
+                      pansDB={pansDB}
+                      onEdit={(r) => {
+                        setEditingRecipe(r);
+                        setIsRecipeModalOpen(true);
+                      }}
+                      onDelete={handleDeleteRecipe}
+                      onSaveToGAS={async (r) => {
+                        try {
+                          setSyncStatus('syncing');
+                          await saveRecipeToGAS(r);
+                          setSyncStatus('synced');
+                          return true;
+                        } catch {
+                          setSyncStatus('error');
+                          return false;
+                        }
+                      }}
+                      onDuplicate={handleDuplicateRecipe}
+                    />
+                  ) : (
+                    <div className="paper-card" style={{ padding: 40, textAlign: 'center', color: 'var(--ink-muted)' }}>
+                      선택된 레시피가 없습니다. 좌측 목록에서 레시피를 선택하거나 새로 작성해보세요.
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}

@@ -136,15 +136,15 @@ export const RecipeList: React.FC<RecipeListProps> = ({
                 onClick={() => onSelectRecipe(recipe)}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, gap: 6 }}>
                     <span className="tag-badge">{recipe.category || '베이커리'}</span>
-                    <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>재료 {ingCount}종</span>
+                    <span style={{ fontSize: 12, color: 'var(--ink-muted)', whiteSpace: 'nowrap' }}>재료 {ingCount}종</span>
                   </div>
-                  <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--ink-primary)', marginBottom: 6 }}>
+                  <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--ink-primary)', marginBottom: 6, lineHeight: 1.3 }}>
                     {recipe.name}
                   </h3>
                   {recipe.panName && (
-                    <p style={{ fontSize: 12, color: 'var(--ink-secondary)', marginBottom: 8 }}>
+                    <p style={{ fontSize: 12, color: 'var(--ink-secondary)', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       틀: <strong>{recipe.panName}</strong>
                     </p>
                   )}
@@ -172,58 +172,41 @@ export const RecipeList: React.FC<RecipeListProps> = ({
           })}
         </div>
       ) : (
-        /* Recipe List: Table List View */
-        <div className="table-wrapper">
-          <table className="artisan-table">
-            <thead>
-              <tr>
-                <th style={{ width: '12%' }}>분류</th>
-                <th style={{ width: '38%' }}>레시피명</th>
-                <th style={{ width: '18%' }}>기준 구움틀</th>
-                <th style={{ width: '12%', textAlign: 'right' }}>기준 수량</th>
-                <th style={{ width: '10%', textAlign: 'right' }}>재료수</th>
-                <th style={{ width: '10%', textAlign: 'right' }}>판매가</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRecipes.map((recipe) => {
-                const isSelected = recipe.name === selectedRecipeName;
-                const ingCount = recipe.ingredients.filter(
-                  (i) => !i.name.startsWith('[소제목') && i.name !== '합계' && i.amount > 0
-                ).length;
+        /* Recipe List: Responsive List View (never overflows or vertically wraps text) */
+        <div className="recipe-compact-list">
+          {filteredRecipes.map((recipe) => {
+            const isSelected = recipe.name === selectedRecipeName;
+            return (
+              <div
+                key={recipe.name}
+                className={`recipe-list-row ${isSelected ? 'selected' : ''}`}
+                onClick={() => onSelectRecipe(recipe)}
+              >
+                <div className="recipe-row-left">
+                  <span className="tag-badge">{recipe.category || '기타'}</span>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="recipe-row-title" title={recipe.name}>
+                      {recipe.name}
+                    </div>
+                    {recipe.panName && (
+                      <div style={{ fontSize: 11, color: 'var(--ink-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {recipe.panName}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                return (
-                  <tr
-                    key={recipe.name}
-                    onClick={() => onSelectRecipe(recipe)}
-                    style={{
-                      cursor: 'pointer',
-                      backgroundColor: isSelected ? 'var(--forest-tint)' : undefined,
-                    }}
-                  >
-                    <td>
-                      <span className="tag-badge">{recipe.category || '베이커리'}</span>
-                    </td>
-                    <td>
-                      <strong style={{ color: isSelected ? 'var(--forest-green)' : 'var(--ink-primary)' }}>
-                        {recipe.name}
-                      </strong>
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--ink-secondary)' }}>{recipe.panName || '-'}</td>
-                    <td style={{ textAlign: 'right' }} className="num-tabular">
-                      {recipe.baseYield || 1}개
-                    </td>
-                    <td style={{ textAlign: 'right', color: 'var(--ink-secondary)' }} className="num-tabular">
-                      {ingCount}개
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--forest-green)' }} className="num-tabular">
-                      {recipe.price > 0 ? formatCurrency(recipe.price) : '-'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                <div className="recipe-row-right">
+                  <span className="recipe-row-price num-tabular">
+                    {recipe.price > 0 ? formatCurrency(recipe.price) : '-'}
+                  </span>
+                  <span className="recipe-row-yield num-tabular">
+                    기준 {recipe.baseYield || 1}개
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 

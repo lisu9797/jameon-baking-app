@@ -7,6 +7,7 @@ import {
   formatSubheading,
   getFormattedToday,
 } from '../utils/calc';
+import { exportWorkOrderToPNG } from '../utils/workOrderExporter';
 import { PanConverter } from './PanConverter';
 import {
   FileDown,
@@ -104,28 +105,14 @@ export const RecipeDetail: React.FC<RecipeDetailProps> = ({
     }));
   };
 
-  // Export work order to PNG via html2canvas
+  // Export work order to PNG via dedicated high-res renderer
   const handleExportPNG = async () => {
-    if (!printRef.current || !window.html2canvas) {
-      alert('html2canvas 라이브러리를 불러오는 중이거나 인쇄 영역을 찾을 수 없습니다.');
-      return;
-    }
-
     try {
       setIsExporting(true);
-      const canvas = await window.html2canvas(printRef.current, {
-        scale: 2, // High resolution for crisp printing
-        backgroundColor: '#FFFFFF',
-        useCORS: true,
-      });
-
-      const link = document.createElement('a');
-      link.download = `[작업지시서]_${recipe.name}_${getFormattedToday()}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    } catch (err) {
+      await exportWorkOrderToPNG(recipe, metrics, currentYield);
+    } catch (err: any) {
       console.error('Failed to export work order PNG:', err);
-      alert('작업지시서 이미지 생성 중 오류가 발생했습니다.');
+      alert('작업지시서 이미지 생성 중 오류가 발생했습니다: ' + (err.message || ''));
     } finally {
       setIsExporting(false);
     }
