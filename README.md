@@ -52,5 +52,18 @@ npm run dev
 npm run build
 ```
 
-### Vercel 배포 환경 변수
+### ☁️ Cloudflare Pages 배포 설정
+1. **Cloudflare 대시보드** (`dash.cloudflare.com`) 접속 ➔ **Workers & Pages** ➔ **Create application** ➔ **Pages** ➔ **Connect to Git** 선택
+2. GitHub 저장소 `lisu9797/jameon-baking-app` 선택
+3. **Build settings (빌드 설정):**
+   - **Framework preset:** `Vite` (또는 `None`)
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+4. **Environment variables (환경 변수):**
+   - 변수명: `VITE_GAS_WEBAPP_URL`
+   - 값: `https://script.google.com/macros/s/AKfycbyBKzrtPG5dG31HC_pFEqBSnI0WLgTppv5vsjYWVJbG2hM_vbDVBHay3JkJoS0uhRhe/exec`
+5. **Save and Deploy** 클릭 ➔ 약 30초 내 배포 완료 및 전 세계 글로벌 CDN 자동 적용 (`.pages.dev` 무료 도메인 제공)
+
+### ▲ Vercel 배포 환경 변수
 - `VITE_GAS_WEBAPP_URL`: Google Apps Script 웹 앱 배포 URL
+

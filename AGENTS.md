@@ -2,12 +2,13 @@
 
 ## 1. 프로젝트 개요 및 배포 환경
 - **목적:** 개인·취미용 베이킹 배합, 원가, 구움틀 변환 관리 웹앱 (잠언베이글 ERP)
-- **개발 및 배포 파이프라인:** Antigravity 리모트 프로젝트 ➔ GitHub (`main` 브랜치 푸시) ➔ Vercel 자동 배포
+- **개발 및 배포 파이프라인:** Antigravity 리모트 프로젝트 ➔ GitHub (`main` 브랜치 푸시) ➔ Vercel 및 Cloudflare Pages 자동 배포
 - **빌드 설정:**
   - Framework: `Vite` (React + TypeScript)
   - Build Command: `npm run build`
   - Output Directory: `dist`
   - `vite-plugin-singlefile`을 적용해 `dist/index.html` 단일 파일로 빌드 가능하도록 유지
+  - Cloudflare Pages SPA 리다이렉트(`public/_redirects`) 및 보안 헤더(`public/_headers`) 적용
 
 ## 2. 기술 스택 및 번들 최적화 규칙
 - **코어:** React 18, Vite, TypeScript, `vite-plugin-singlefile`, `lucide-react`
